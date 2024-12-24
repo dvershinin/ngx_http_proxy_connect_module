@@ -56,18 +56,18 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/src/http/ngx_http_parse.c b/src/http/ngx_http_parse.c
 --- a/src/http/ngx_http_parse.c	(revision c73fb273acc31bff7c4e469efda5f3fd66c48557)
-+++ b/src/http/ngx_http_parse.c	(date 1735017662257)
++++ b/src/http/ngx_http_parse.c	(date 1735022283694)
 @@ -130,6 +130,14 @@
          sw_minor_digit,
          sw_spaces_after_digit,
          sw_almost_done
 +#if (NGX_HTTP_PROXY_CONNECT)
-+        sw_spaces_before_connect_host,
++        , sw_spaces_before_connect_host,
 +        sw_connect_host_start,
 +        sw_connect_host,
 +        sw_connect_host_end,
 +        sw_connect_host_ip_literal,
-+        sw_connect_port,
++        sw_connect_port
 +#endif
      } state;
  
