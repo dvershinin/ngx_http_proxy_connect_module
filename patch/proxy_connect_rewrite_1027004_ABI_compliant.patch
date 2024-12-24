@@ -1,0 +1,321 @@
+Subject: [PATCH] ABI-compatible support for HTTP CONNECT method in proxy configurations
+
+This commit introduces handling of the HTTP CONNECT method, enabling proper parsing and validation of "connect_host" and "connect_port" in the request. It ensures that invalid hosts or ports return appropriate errors and updates request processing phases to handle CONNECT requests correctly. This feature is guarded by the NGX_HTTP_PROXY_CONNECT compile-time directive.
+---
+Index: src/http/ngx_http_variables.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/http/ngx_http_variables.c b/src/http/ngx_http_variables.c
+--- a/src/http/ngx_http_variables.c	(revision c73fb273acc31bff7c4e469efda5f3fd66c48557)
++++ b/src/http/ngx_http_variables.c	(date 1735018970973)
+@@ -398,6 +398,14 @@
+     { ngx_string("arg_"), NULL, ngx_http_variable_argument,
+       0, NGX_HTTP_VAR_NOCACHEABLE|NGX_HTTP_VAR_PREFIX, 0 },
+ 
++#if (NGX_HTTP_PROXY_CONNECT)
++    { ngx_string("connect_host"), NULL, ngx_http_variable_request,
++      offsetof(ngx_http_request_t, connect_host), 0, 0 },
++
++    { ngx_string("connect_port"), NULL, ngx_http_variable_request,
++      offsetof(ngx_http_request_t, connect_port), 0, 0 },
++#endif
++
+       ngx_http_null_variable
+ };
+ 
+Index: src/http/ngx_http_request.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/http/ngx_http_request.h b/src/http/ngx_http_request.h
+--- a/src/http/ngx_http_request.h	(revision c73fb273acc31bff7c4e469efda5f3fd66c48557)
++++ b/src/http/ngx_http_request.h	(date 1735017662252)
+@@ -601,6 +601,15 @@
+ 
+     unsigned                          http_minor:16;
+     unsigned                          http_major:16;
++
++#if (NGX_HTTP_PROXY_CONNECT)
++    ngx_str_t                         connect_host;
++    ngx_str_t                         connect_port;
++    in_port_t                         connect_port_n;
++    u_char                           *connect_host_start;
++    u_char                           *connect_host_end;
++    u_char                           *connect_port_end;
++#endif
+ };
+ 
+ 
+Index: src/http/ngx_http_parse.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/http/ngx_http_parse.c b/src/http/ngx_http_parse.c
+--- a/src/http/ngx_http_parse.c	(revision c73fb273acc31bff7c4e469efda5f3fd66c48557)
++++ b/src/http/ngx_http_parse.c	(date 1735017662257)
+@@ -130,6 +130,14 @@
+         sw_minor_digit,
+         sw_spaces_after_digit,
+         sw_almost_done
++#if (NGX_HTTP_PROXY_CONNECT)
++        sw_spaces_before_connect_host,
++        sw_connect_host_start,
++        sw_connect_host,
++        sw_connect_host_end,
++        sw_connect_host_ip_literal,
++        sw_connect_port,
++#endif
+     } state;
+ 
+     state = r->state;
+@@ -270,6 +278,13 @@
+                 }
+ 
+                 state = sw_spaces_before_uri;
++
++#if (NGX_HTTP_PROXY_CONNECT)
++                if (r->method == NGX_HTTP_CONNECT) {
++                    state = sw_spaces_before_connect_host;
++                }
++#endif
++
+                 break;
+             }
+ 
+@@ -278,6 +293,111 @@
+             }
+ 
+             break;
++
++#if (NGX_HTTP_PROXY_CONNECT)
++        case sw_spaces_before_connect_host:
++
++            if (ch == ' ') {
++                break;
++            }
++
++            /* fall through */
++
++        case sw_connect_host_start:
++
++            r->connect_host_start = p;
++
++            if (ch == '[') {
++                state = sw_connect_host_ip_literal;
++                break;
++            }
++
++            state = sw_connect_host;
++
++            /* fall through */
++
++        case sw_connect_host:
++
++            c = (u_char) (ch | 0x20);
++            if (c >= 'a' && c <= 'z') {
++                break;
++            }
++
++            if ((ch >= '0' && ch <= '9') || ch == '.' || ch == '-') {
++                break;
++            }
++
++            /* fall through */
++
++        case sw_connect_host_end:
++
++            r->connect_host_end = p;
++
++            switch (ch) {
++            case ':':
++                state = sw_connect_port;
++                break;
++            default:
++                return NGX_HTTP_PARSE_INVALID_REQUEST;
++            }
++            break;
++
++        case sw_connect_host_ip_literal:
++
++            if (ch >= '0' && ch <= '9') {
++                break;
++            }
++
++            c = (u_char) (ch | 0x20);
++            if (c >= 'a' && c <= 'z') {
++                break;
++            }
++
++            switch (ch) {
++            case ':':
++                break;
++            case ']':
++                state = sw_connect_host_end;
++                break;
++            case '-':
++            case '.':
++            case '_':
++            case '~':
++                /* unreserved */
++                break;
++            case '!':
++            case '$':
++            case '&':
++            case '\'':
++            case '(':
++            case ')':
++            case '*':
++            case '+':
++            case ',':
++            case ';':
++            case '=':
++                /* sub-delims */
++                break;
++            default:
++                return NGX_HTTP_PARSE_INVALID_REQUEST;
++            }
++            break;
++
++        case sw_connect_port:
++            if (ch >= '0' && ch <= '9') {
++                break;
++            }
++
++            switch (ch) {
++            case ' ':
++                r->connect_port_end = p;
++                state = sw_http_09;
++                break;
++            default:
++                return NGX_HTTP_PARSE_INVALID_REQUEST;
++            }
++            break;
++#endif
+ 
+         /* space* before URI */
+         case sw_spaces_before_uri:
+Index: src/http/ngx_http_request.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/http/ngx_http_request.c b/src/http/ngx_http_request.c
+--- a/src/http/ngx_http_request.c	(revision c73fb273acc31bff7c4e469efda5f3fd66c48557)
++++ b/src/http/ngx_http_request.c	(date 1735017486303)
+@@ -1133,6 +1133,55 @@
+                 r->http_protocol.len = r->request_end - r->http_protocol.data;
+             }
+ 
++#if (NGX_HTTP_PROXY_CONNECT)
++
++            if (r->connect_host_start && r->connect_host_end) {
++
++                host.len = r->connect_host_end - r->connect_host_start;
++                host.data = r->connect_host_start;
++                rc = ngx_http_validate_host(&host, r->pool, 0);
++
++                if (rc == NGX_DECLINED) {
++                    ngx_log_error(NGX_LOG_INFO, c->log, 0,
++                                  "client sent invalid host in request line");
++                    ngx_http_finalize_request(r, NGX_HTTP_BAD_REQUEST);
++                    return;
++                }
++
++                if (rc == NGX_ERROR) {
++                    ngx_http_close_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
++                    return;
++                }
++
++                r->connect_host = host;
++
++                if (!r->connect_port_end) {
++                   ngx_log_error(NGX_LOG_INFO, c->log, 0,
++                                  "client sent no port in request line");
++                    ngx_http_finalize_request(r, NGX_HTTP_BAD_REQUEST);
++                    return;
++                }
++
++                r->connect_port.data = r->connect_host_end + 1;
++                r->connect_port.len = r->connect_port_end
++                                      - r->connect_host_end - 1;
++
++                ngx_int_t port;
++
++                port = ngx_atoi(r->connect_port.data, r->connect_port.len);
++                if (port == NGX_ERROR || port < 1 || port > 65535) {
++                    ngx_log_error(NGX_LOG_INFO, c->log, 0,
++                                  "client sent invalid port in request line");
++                    ngx_http_finalize_request(r, NGX_HTTP_BAD_REQUEST);
++                    return;
++                }
++
++                r->connect_port_n = port;
++
++                /* skip processing request uri */
++            } else
++#endif
++
+             if (ngx_http_process_request_uri(r) != NGX_OK) {
+                 break;
+             }
+@@ -1737,6 +1786,19 @@
+             }
+         }
+ 
++#if (NGX_HTTP_PROXY_CONNECT)
++        if (r->connect_host_start) {
++            r->connect_host_start = new + (r->connect_host_start - old);
++            if (r->connect_host_end) {
++                r->connect_host_end = new + (r->connect_host_end - old);
++            }
++
++            if (r->connect_port_end) {
++                r->connect_port_end = new + (r->connect_port_end - old);
++            }
++        }
++#endif
++
+         if (r->host_start) {
+             r->host_start = new + (r->host_start - old);
+             if (r->host_end) {
+@@ -2031,13 +2093,6 @@
+         }
+     }
+ 
+-    if (r->method == NGX_HTTP_CONNECT) {
+-        ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+-                      "client sent CONNECT method");
+-        ngx_http_finalize_request(r, NGX_HTTP_NOT_ALLOWED);
+-        return NGX_ERROR;
+-    }
+-
+     if (r->method == NGX_HTTP_TRACE) {
+         ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                       "client sent TRACE method");
+Index: src/http/ngx_http_core_module.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/http/ngx_http_core_module.c b/src/http/ngx_http_core_module.c
+--- a/src/http/ngx_http_core_module.c	(revision c73fb273acc31bff7c4e469efda5f3fd66c48557)
++++ b/src/http/ngx_http_core_module.c	(date 1735017486294)
+@@ -957,6 +957,14 @@
+     r->content_handler = NULL;
+     r->uri_changed = 0;
+ 
++#if (NGX_HTTP_PROXY_CONNECT)
++    if (r->method == NGX_HTTP_CONNECT) {
++        ngx_http_update_location_config(r);
++        r->phase_handler++;
++        return NGX_AGAIN;
++    }
++#endif
++
+     rc = ngx_http_core_find_location(r);
+ 
+     if (rc == NGX_ERROR) {
