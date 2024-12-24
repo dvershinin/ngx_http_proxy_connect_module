@@ -1,6 +1,8 @@
 ngx_http_proxy_connect_module
 ====
 
+This fork is integrated in NGINX-MOD.
+
 > [!CAUTION]
 > Compiling as dynamic module is discouraged at present, patched NGINX binary will not pick up the flag NGX_HTTP_PROXY_CONNECT.
 > Only proper way for this is compiling NGINX and dynamic module in one go, then removing the module for packaging
