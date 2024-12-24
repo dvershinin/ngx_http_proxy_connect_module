@@ -1,10 +1,11 @@
 ngx_http_proxy_connect_module
 ====
 
-This fork is integrated in NGINX-MOD.
+**This module is integrated in [NGINX-MOD](https://nginx-extras.getpagespeed.com/nginx-mod/).
+If you use NGINX-MOD, it means you can use this module's directives below. No need to compile or install anything extra.**
 
 > [!CAUTION]
-> Compiling as dynamic module is discouraged at present, patched NGINX binary will not pick up the flag NGX_HTTP_PROXY_CONNECT.
+> Compiling as a dynamic module is discouraged at present, patched NGINX binary will not pick up the flag NGX_HTTP_PROXY_CONNECT.
 > Only proper way for this is compiling NGINX and dynamic module in one go, then removing the module for packaging
 
 > [!CAUTION]
@@ -12,57 +13,6 @@ This fork is integrated in NGINX-MOD.
 
 This module provides support for [the CONNECT method request](https://tools.ietf.org/html/rfc7231#section-4.3.6).
 This method is mainly used to [tunnel SSL requests](https://en.wikipedia.org/wiki/HTTP_tunnel#HTTP_CONNECT_tunneling) through proxy servers.
-
-Table of Contents
-=================
-
-   * [name](#name)
-   * [Example](#example)
-      * [configuration example](#configuration-example)
-        * [example for curl](#example-for-curl)
-      * [configuration example for CONNECT request in https](#configuration-example-for-connect-request-in-https)
-        * [example for curl (CONNECT request in https)](#example-for-curl-connect-request-in-https)
-        * [example for browser](#example-for-browser)
-      * [example for basic authentication](#example-for-basic-authentication)
-      * [example for proxying WebSocket](#example-for-proxying-websocket)
-   * [Install](#install)
-      * [select patch](#select-patch)
-      * [build nginx](#build-nginx)
-         * [build as a dynamic module](#build-as-a-dynamic-module)
-      * [build OpenResty](#build-openresty)
-   * [Test Suite](#test-suite)
-   * [Error Log](#error-log)
-   * [Directive](#directive)
-      * [proxy_connect](#proxy_connect)
-      * [proxy_connect_allow](#proxy_connect_allow)
-      * [proxy_connect_connect_timeout](#proxy_connect_connect_timeout)
-      * [proxy_connect_data_timeout](#proxy_connect_data_timeout)
-      * [proxy_connect_read_timeout(deprecated)](#proxy_connect_read_timeout)
-      * [proxy_connect_send_timeout(deprecated)](#proxy_connect_send_timeout)
-      * [proxy_connect_address](#proxy_connect_address)
-      * [proxy_connect_bind](#proxy_connect_bind)
-      * [proxy_connect_response](#proxy_connect_response)
-   * [Variables](#variables)
-      * [$connect_host](#connect_host)
-      * [$connect_port](#connect_port)
-      * [$connect_addr](#connect_addr)
-      * [$proxy_connect_connect_timeout](#proxy_connect_connect_timeout-1)
-      * [$proxy_connect_data_timeout](#proxy_connect_data_timeout-1)
-      * [$proxy_connect_read_timeout(deprecated)](#proxy_connect_read_timeout-1)
-      * [$proxy_connect_send_timeout(deprecated)](#proxy_connect_send_timeout-1)
-      * [$proxy_connect_resolve_time](#proxy_connect_resolve_time)
-      * [$proxy_connect_connect_time](#proxy_connect_connect_time)
-      * [$proxy_connect_first_byte_time](#proxy_connect_first_byte_time)
-      * [$proxy_connect_response](#proxy_connect_response-1)
-   * [Compatibility](#compatibility)
-      * [Nginx Compatibility](#nginx-compatibility)
-      * [OpenResty Compatibility](#openresty-compatibility)
-      * [Tengine Compatibility](#tengine-compatibility)
-   * [FAQ](#faq)
-   * [Known Issues](#known-issues)
-   * [See Also](#see-also)
-   * [Author](#author)
-   * [License](#license)
 
 Example
 =======
@@ -478,8 +428,8 @@ Some typical error logs are shown as following:
 2019/08/07 17:27:20 [error] 19257#0: *1 proxy_connect: upstream connect timed out (peer:216.58.200.4:443) while connecting to upstream, client: 127.0.0.1, server: , request: "CONNECT www.google.com:443 HTTP/1.1", host: "www.google.com:443"
 ```
 
-Directive
-=========
+Directives
+==========
 
 proxy_connect
 -------------
