@@ -1,5 +1,11 @@
-name
+ngx_http_proxy_connect_module
 ====
+
+Important notes not accounted in original README:
+
+* Compiling as dynamic module is discouraged at present, patched NGINX binary will not pick up the flag NGX_HTTP_PROXY_CONNECT.
+    * Only proper way for this is compiling NGINX and dynamic module in one go, then removing the module for packaging
+* Existing patch was not ABI compliant because it added fields in the middle
 
 This module provides support for [the CONNECT method request](https://tools.ietf.org/html/rfc7231#section-4.3.6).
 This method is mainly used to [tunnel SSL requests](https://en.wikipedia.org/wiki/HTTP_tunnel#HTTP_CONNECT_tunneling) through proxy servers.

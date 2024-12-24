@@ -51,7 +51,7 @@ jobs:
       run: |
          pwd
          cd nginx
-         patch -p1 < ../patch/proxy_connect_rewrite_102101.patch
+         patch -p1 < ../patch/proxy_connect_rewrite_1027004_ABI_compliant.patch
          export LUAJIT_LIB=/usr/local/lib
          export LUAJIT_INC=/usr/local/include/luajit-2.1
          ./auto/configure --prefix=/opt/nginx --with-ld-opt="-lpcre" --add-module=../ --add-module=../lua-nginx-module
@@ -91,4 +91,3 @@ jobs:
          proxy_connect_test_cases=../t/
          export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
          TEST_NGINX_UNSAFE=yes TEST_NGINX_BINARY=$(pwd)/objs/nginx prove -v -I $nginx_tests_lib_path  $proxy_connect_test_cases
-
